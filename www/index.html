@@ -151,9 +151,9 @@ h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
 </head><body>
 <div class="wrap" id="app"></div>
 <div class="nav"><div role="tablist" aria-label="Bo'limlar">
-  <button role="tab" id="tab-today" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>Bugun</button>
-  <button role="tab" id="tab-stats" data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Tahlil</button>
-  <button role="tab" id="tab-plan" data-tab="plan"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Rejalar</button>
+  <button role="tab" id="tab-today" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg><span class="nl" data-l="Bugun">Bugun</span></button>
+  <button role="tab" id="tab-stats" data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><span class="nl" data-l="Tahlil">Tahlil</span></button>
+  <button role="tab" id="tab-plan" data-tab="plan"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span class="nl" data-l="Rejalar">Rejalar</span></button>
 </div></div>
 <div id="layer"></div>
 
@@ -285,6 +285,69 @@ if(!S||!Array.isArray(S.tasks)) S={tasks:defaults(),done:{},fired:{},snooze:[],r
 S.tasks.forEach(t=>{if(t.prayer===undefined){const i=PRAYERS.findIndex(p=>t.name.toLowerCase().startsWith(p.toLowerCase())&&/namoz/i.test(t.name));if(i>=0)t.prayer=i;}});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}if(typeof queueSchedule==="function")queueSchedule();}
 
+/* ---------- Til: lotin / kirill ---------- */
+var LANG=(S&&S.lang==="cy")?"cy":"lat";
+var DEFLAT={"Bomdod namozi":1,"Diniy kitob: 5 bet o'qish":1,"Kurs bo'yicha 1 soat shug'ullanish":1,"Peshin namozi":1,"YouTube uchun video yasash":1,"Asr namozi":1,"Shom namozi":1,"Videoni kanalga joylash":1,"Xufton namozi":1,"Dunyoviy bilim: 5 bet kitob o'qish":1};
+var CYMAP={a:"а",b:"б",d:"д",f:"ф",g:"г",h:"ҳ",i:"и",j:"ж",k:"к",l:"л",m:"м",n:"н",o:"о",p:"п",q:"қ",r:"р",s:"с",t:"т",u:"у",v:"в",x:"х",z:"з"};
+function isLet(c){return !!c&&/[A-Za-zЀ-ӿ]/.test(c);}
+function convCy(s){
+  const AP="'ʻʼ’`",V="aeiouAEIOU";
+  let out="",i=0;
+  const cap=(r,c)=>c!==c.toLowerCase()?r.toUpperCase():r;
+  while(i<s.length){
+    const c=s[i],l=c.toLowerCase(),n=s[i+1]||"",nl=n.toLowerCase(),n2=s[i+2]||"";
+    if((l==="o"||l==="g")&&n&&AP.indexOf(n)>=0){out+=cap(l==="o"?"ў":"ғ",c);i+=2;continue;}
+    if(l==="s"&&nl==="h"){out+=cap("ш",c);i+=2;continue;}
+    if(l==="c"&&nl==="h"){out+=cap("ч",c);i+=2;continue;}
+    if(l==="y"){
+      if(nl==="a"){out+=cap("я",c);i+=2;continue;}
+      if(nl==="u"){out+=cap("ю",c);i+=2;continue;}
+      if(nl==="e"){out+=cap("е",c);i+=2;continue;}
+      if(nl==="o"&&!(n2&&AP.indexOf(n2)>=0)){out+=cap("ё",c);i+=2;continue;}
+      out+=cap("й",c);i++;continue;
+    }
+    if(l==="e"){out+=cap(isLet(s[i-1])?"е":"э",c);i++;continue;}
+    if(AP.indexOf(c)>=0){
+      if(i>0&&V.indexOf(s[i-1])>=0&&isLet(n))out+="ъ";else out+=c;
+      i++;continue;
+    }
+    if(CYMAP[l]){out+=cap(CYMAP[l],c);i++;continue;}
+    out+=c;i++;
+  }
+  return out;
+}
+function lat2cyr(s){
+  return String(s).split(/(YouTube|APK|GitHub)/).map((p,i)=>i%2?p:convCy(p)).join("");
+}
+function tx(s){return LANG==="cy"?lat2cyr(s):s;}
+function dispName(t){return (LANG==="cy"&&DEFLAT[t.name])?lat2cyr(t.name):t.name;}
+function localizeDom(root){
+  if(LANG!=="cy"||!root)return;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+  const nodes=[];let n;
+  while((n=w.nextNode()))nodes.push(n);
+  nodes.forEach(t=>{const p=t.parentElement;
+    if(!p||p.closest(".u")||/^(SCRIPT|STYLE)$/.test(p.tagName))return;
+    if(/[A-Za-z]/.test(t.nodeValue))t.nodeValue=lat2cyr(t.nodeValue);});
+  root.querySelectorAll("[placeholder],[aria-label],[title]").forEach(el=>{
+    if(el.closest(".u"))return;
+    ["placeholder","aria-label","title"].forEach(a=>{const v=el.getAttribute(a);if(v)el.setAttribute(a,lat2cyr(v));});});
+}
+function updateNav(){
+  document.querySelectorAll(".nav .nl").forEach(el=>{el.textContent=tx(el.dataset.l);});
+  const tl=document.querySelector(".nav [role=tablist]");if(tl)tl.setAttribute("aria-label",tx("Bo'limlar"));
+  document.documentElement.lang=LANG==="cy"?"uz-Cyrl":"uz";
+}
+function setLang(l){LANG=l==="cy"?"cy":"lat";S.lang=LANG;save();render();}
+function showLangChooser(){
+  const L=document.querySelector("#layer");
+  L.innerHTML='<div class="overlay" id="lang-ov"><div class="sheet u" role="dialog" aria-label="Til / Тил"><h2>Tilni tanlang · Тилни танланг</h2>'
+   +'<p class="note">Keyinroq «Rejalar» bo\'limida o\'zgartirish mumkin. · Кейинроқ «Режалар» бўлимида ўзгартириш мумкин.</p>'
+   +'<div class="actions"><button class="btn primary" type="button" data-lg="lat">O\'zbekcha (lotin)</button><button class="btn primary" type="button" data-lg="cy">Ўзбекча (кирилл)</button></div></div></div>';
+  L.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{L.innerHTML="";setLang(b.dataset.lg);});
+}
+
+
 const pad=n=>String(n).padStart(2,"0");
 const dkey=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const wdIdx=d=>(d.getDay()+6)%7;
@@ -330,7 +393,7 @@ function renderToday(){
   st.list.forEach(t=>{const d=isDone(k,t.id),tt=tm(t,k),late=!d&&tt&&mins(tt)<nowM;
     h+=`<div class="item"><button class="task${d?" done":""}${late?" late":""}${next&&next.id===t.id?" next":""}" data-toggle="${t.id}" aria-pressed="${d}">
       <span class="box">${SVG_CHECK}</span>
-      <span class="body"><span class="name">${esc(t.name)}</span><span class="meta">${catLabel(t)}${t.date?'<span class="tag">bir martalik</span>':""}${t.prayer!=null&&PT[k]?'<span class="tag">jadvaldan</span>':""}${late?'<span class="chip">kechikdi</span>':""}${next&&next.id===t.id?'<span class="chip ok">keyingisi</span>':""}</span></span>
+      <span class="body"><span class="name u">${esc(dispName(t))}</span><span class="meta">${catLabel(t)}${t.date?'<span class="tag">bir martalik</span>':""}${t.prayer!=null&&PT[k]?'<span class="tag">jadvaldan</span>':""}${late?'<span class="chip">kechikdi</span>':""}${next&&next.id===t.id?'<span class="chip ok">keyingisi</span>':""}</span></span>
       <span class="time num">${tt||"—"}</span></button>
       ${tt?`<button class="iconbtn" data-bell="${t.id}" aria-pressed="${!!t.remind}" aria-label="Budilnik: ${t.remind?"yoqilgan":"o'chiq"}">${t.remind?SVG_BELL_ON:SVG_BELL_OFF}</button>`:""}
       <button class="iconbtn" data-edit="${t.id}" aria-label="Tahrirlash">${SVG_EDIT}</button></div>`;});
@@ -376,8 +439,8 @@ function renderStats(){
   const byCat=CATS.map((c,i)=>({c,i,tot:st.list.filter(t=>t.cat===i).length,dn:st.done.filter(t=>t.cat===i).length})).filter(x=>x.tot);
   if(byCat.length) h+=`<div class="card"><h2 style="font-size:18px">Yo'nalishlar bo'yicha</h2><div class="bars">`+byCat.map(x=>`<div class="bar"><div class="row"><span>${x.c}</span><span class="num">${x.dn} / ${x.tot}</span></div><div class="track"><div class="fill" style="width:${x.dn/x.tot*100}%;background:var(--c${x.i})"></div></div></div>`).join("")+`</div></div>`;
   // ro'yxatlar
-  h+=`<div class="card"><p class="sub">Qilingan ishlar</p><ul class="mini">${st.done.length?st.done.map(t=>`<li><span>${esc(t.name)}</span><span class="t num">${tm(t,k)}</span></li>`).join(""):'<li><span class="t">Hali yo\'q</span></li>'}</ul>
-    <p class="sub">Qolgan ishlar</p><ul class="mini">${st.left.length?st.left.map(t=>`<li><span>${esc(t.name)}</span><span class="t num">${tm(t,k)}</span></li>`).join(""):'<li><span class="t">Hammasi bajarilgan</span></li>'}</ul></div>`;
+  h+=`<div class="card"><p class="sub">Qilingan ishlar</p><ul class="mini">${st.done.length?st.done.map(t=>`<li><span class="u">${esc(dispName(t))}</span><span class="t num">${tm(t,k)}</span></li>`).join(""):'<li><span class="t">Hali yo\'q</span></li>'}</ul>
+    <p class="sub">Qolgan ishlar</p><ul class="mini">${st.left.length?st.left.map(t=>`<li><span class="u">${esc(dispName(t))}</span><span class="t num">${tm(t,k)}</span></li>`).join(""):'<li><span class="t">Hammasi bajarilgan</span></li>'}</ul></div>`;
   return h;
 }
 
@@ -388,8 +451,9 @@ function renderPlan(){
   const tk=dkey(new Date());
   const rec=S.tasks.filter(t=>!t.date), one=S.tasks.filter(t=>t.date).sort((a,b)=>a.date.localeCompare(b.date));
   const byTime=(a,b)=>(tm(a,tk)?mins(tm(a,tk)):9999)-(tm(b,tk)?mins(tm(b,tk)):9999);
-  const row=t=>`<button class="task" data-edit="${t.id}"><span class="body"><span class="name">${esc(t.name)}</span><span class="meta">${catLabel(t)}<span>${t.date?dateText(t.date):daysText(t.days)}</span>${t.prayer!=null?'<span class="tag">namoz jadvali</span>':""}${t.remind&&tm(t,tk)?SVG_BELL:""}</span></span><span class="time num">${tm(t,tk)||"—"}</span></button>`;
+  const row=t=>`<button class="task" data-edit="${t.id}"><span class="body"><span class="name u">${esc(dispName(t))}</span><span class="meta">${catLabel(t)}<span>${t.date?dateText(t.date):daysText(t.days)}</span>${t.prayer!=null?'<span class="tag">namoz jadvali</span>':""}${t.remind&&tm(t,tk)?SVG_BELL:""}</span></span><span class="time num">${tm(t,tk)||"—"}</span></button>`;
   let h=`<div class="top"><div class="date"><small>Boshqaruv</small><h1>Rejalar</h1><p>Istalgan vazifani bosib, nomini, vaqtini, kunini va budilnigini o'zgartiring.</p></div></div>
+   <div class="card u"><span class="sub">Til / Тил</span><div class="seg"><button type="button" data-lang="lat" aria-pressed="${LANG==="lat"}">O'zbekcha (lotin)</button><button type="button" data-lang="cy" aria-pressed="${LANG==="cy"}">Ўзбекча (кирилл)</button></div></div>
    <button class="btn primary" id="addTask">Yangi vazifa qo'shish</button>
    <div class="sec"><h2>Doimiy vazifalar</h2><span>${rec.length} ta</span></div><div class="list">`;
   if(!rec.length) h+=`<div class="empty">Doimiy vazifa yo'q.</div>`;
@@ -405,7 +469,7 @@ function renderPlan(){
 function openForm(id,preset){
   const src=id?S.tasks.find(x=>x.id===id):null;
   if(id&&!src)return;
-  const f=src?{name:src.name,cat:src.cat,time:src.time||"",remind:!!src.remind,days:src.days.slice(),date:src.date||"",
+  const f=src?{name:dispName(src),cat:src.cat,time:src.time||"",remind:!!src.remind,days:src.days.slice(),date:src.date||"",
       prayer:src.prayer!=null?src.prayer:-1,kind:src.date?"one":"rec"}
     :Object.assign({name:"",cat:4,time:"",remind:true,days:ALL.slice(),date:dkey(new Date()),prayer:-1,kind:"rec"},preset||{});
   let confirmDel=false;
@@ -426,6 +490,7 @@ function openForm(id,preset){
      <div class="field"><label for="f-time">${f.prayer>=0?"Zaxira soat (jadval tugagach ishlaydi)":"Soati (bo'sh qoldirsangiz, kun davomida istalgan payt)"}</label><input type="time" id="f-time" value="${f.time}"></div>
      <div class="check"><input type="checkbox" id="f-rem"${f.remind?" checked":""}><label for="f-rem">Budilnik: vaqti kelganda eslatsin</label></div>
      <div class="actions"><button class="btn primary" type="submit">Saqlash</button><button class="btn" type="button" id="cancel">Bekor qilish</button>${id?`<button class="btn danger" type="button" id="del">${confirmDel?"Ha, o'chirilsin":"O'chirish"}</button>`:""}</div></form></div>`;
+    localizeDom(L);
     $("#cancel").onclick=close; $("#ov").onclick=e=>{if(e.target.id==="ov")close();};
     L.querySelectorAll(".day").forEach(b=>b.onclick=()=>{const i=+b.dataset.d;f.days=f.days.includes(i)?f.days.filter(x=>x!==i):f.days.concat(i);b.setAttribute("aria-pressed",f.days.includes(i));});
     L.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>{sync();f.kind=b.dataset.kind;if(f.kind==="one"&&!f.date)f.date=dkey(new Date());draw();});
@@ -436,7 +501,7 @@ function openForm(id,preset){
     $("#frm").onsubmit=e=>{e.preventDefault();sync();const name=f.name.trim();if(!name)return;
       if(f.kind==="rec"&&!f.days.length){alert_("Kamida bitta kunni tanlang.");return;}
       if(f.kind==="one"&&!f.date){alert_("Kunni tanlang.");return;}
-      const o={name,cat:f.cat,time:f.time,remind:f.remind,prayer:f.prayer>=0?f.prayer:null,
+      const o={name:(src&&name===dispName(src))?src.name:name,cat:f.cat,time:f.time,remind:f.remind,prayer:f.prayer>=0?f.prayer:null,
         days:f.kind==="rec"?f.days.slice().sort():ALL.slice(),date:f.kind==="one"?f.date:null};
       if(src)Object.assign(src,o);else S.tasks.push(Object.assign({id:nid()},o));
       S.sample=false;save();close();render();};
@@ -458,9 +523,10 @@ function fire(t){queue.push(t);next();}
 function next(){
   if(showing||!queue.length)return;const t=queue.shift();showing=true;
   const shown=t.id?tm(t,dkey(new Date())):(t.time||"");
-  try{if("Notification" in window&&Notification.permission==="granted")new Notification("Vaqti keldi: "+t.name,{body:shown});}catch(e){}
-  $("#layer").innerHTML=`<div class="overlay alarm ring-anim" id="ov"><div class="sheet" role="alertdialog" aria-label="Eslatma"><small class="note">ESLATMA</small><div class="big num">${esc(shown)}</div><h2>${esc(t.name)}</h2>
+  try{if("Notification" in window&&Notification.permission==="granted")new Notification(tx("Vaqti keldi: ")+dispName(t),{body:shown});}catch(e){}
+  $("#layer").innerHTML=`<div class="overlay alarm ring-anim" id="ov"><div class="sheet" role="alertdialog" aria-label="Eslatma"><small class="note">ESLATMA</small><div class="big num">${esc(shown)}</div><h2 class="u">${esc(dispName(t))}</h2>
     <button class="btn primary" id="a-done">Bajardim</button><button class="btn" id="a-snz">10 daqiqadan keyin eslat</button><button class="btn" id="a-close">Yopish</button></div></div>`;
+  localizeDom($("#layer"));
   beep();beepTimer=setInterval(beep,1500);try{navigator.vibrate&&navigator.vibrate([300,150,300]);}catch(e){}
   const end=()=>{stopBeep();$("#layer").innerHTML="";showing=false;render();next();};
   $("#a-done").onclick=()=>{const k=dkey(new Date());const a=S.done[k]||(S.done[k]=[]);if(t.id&&!a.includes(t.id))a.push(t.id);save();end();};
@@ -484,15 +550,17 @@ setInterval(tick,15000);
 function render(){
   const app=$("#app");
   app.innerHTML= tab==="today"?renderToday():tab==="stats"?renderStats():renderPlan();
+  localizeDom(app);updateNav();
   document.querySelectorAll(".nav [data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));
   app.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>toggle(b.dataset.toggle));
   app.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openForm(b.dataset.edit));
   app.querySelectorAll("[data-day]").forEach(g=>g.onclick=()=>{selDate=g.dataset.day;render();});
   const e=$("#enable");if(e)e.onclick=()=>{unlockAudio();S.remindOn=true;save();
     try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(x){}render();};
-  const ta=$("#testAlarm");if(ta)ta.onclick=()=>{unlockAudio();fire({id:"",name:"Sinov eslatmasi",time:pad(new Date().getHours())+":"+pad(new Date().getMinutes())});};
+  const ta=$("#testAlarm");if(ta)ta.onclick=()=>{unlockAudio();fire({id:"",name:tx("Sinov eslatmasi"),time:pad(new Date().getHours())+":"+pad(new Date().getMinutes())});};
   const hs=$("#hideSample");if(hs)hs.onclick=()=>{S.sample=false;save();render();};
   const ad=$("#addTask");if(ad)ad.onclick=()=>openForm(null);
+  app.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
   app.querySelectorAll("[data-bell]").forEach(b=>b.onclick=()=>{const t=S.tasks.find(x=>x.id===b.dataset.bell);if(!t)return;t.remind=!t.remind;
     if(t.remind&&!S.remindOn){unlockAudio();S.remindOn=true;try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(x){}}
     save();render();});
@@ -507,7 +575,25 @@ setInterval(()=>{const k=dkey(new Date());if(k!==lastDay){lastDay=k;selDate=k;if
 /* ---------- Android (Capacitor): telefonning o'z budilnigi ---------- */
 var NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 var schedT=null;
-function queueSchedule(){if(!NATIVE)return;clearTimeout(schedT);schedT=setTimeout(scheduleNative,800);}
+function queueSchedule(){if(!NATIVE)return;clearTimeout(schedT);schedT=setTimeout(function(){scheduleNative();pushWidget();},800);}
+function pushWidget(){
+  if(!NATIVE)return;
+  try{
+    const C=window.Capacitor;
+    const W=(C.Plugins&&C.Plugins.WidgetBridge)||(C.registerPlugin?C.registerPlugin("WidgetBridge"):null);
+    if(!W||!W.update)return;
+    const now=new Date(),k=dkey(now),st=dayStats(now),n=st.left.length,lines=[];
+    if(!st.list.length)lines.push(tx("Bugunga vazifa yo'q"));
+    else if(!n)lines.push(tx("Hammasi bajarildi")+" ✓");
+    else{
+      const show=n>8?7:n;
+      for(let i=0;i<show;i++){const t=st.left[i],tt=tm(t,k);lines.push((tt||"•")+"  "+dispName(t));}
+      if(n>show)lines.push("+"+(n-show)+" "+tx("ta yana"));
+    }
+    const p=W.update({json:JSON.stringify({date:k,title:tx("Kunlik Reja"),header:tx("Bugun")+"  "+st.done.length+"/"+st.list.length,lines:lines,stale:tx("Yangilash uchun ilovani oching")})});
+    if(p&&p.catch)p.catch(function(){});
+  }catch(e){}
+}
 var nativeMsg="";
 function getLN(){
   const C=window.Capacitor;if(!C)return null;
@@ -524,7 +610,7 @@ async function scheduleNative(){
     let perm=await LN.checkPermissions();
     if(perm.display!=="granted"){perm=await LN.requestPermissions();}
     if(perm.display!=="granted"){setNativeMsg("Budilnik o'chiq: bildirishnomalarga ruxsat berilmagan. Telefon sozlamalaridan «Kunlik Reja» uchun bildirishnomani yoqing.");return;}
-    try{await LN.createChannel({id:"budilnik",name:"Budilnik",description:"Vazifa vaqti eslatmalari",importance:5,visibility:1,vibration:true});}catch(e){}
+    try{await LN.createChannel({id:"budilnik",name:tx("Budilnik"),description:tx("Vazifa vaqti eslatmalari"),importance:5,visibility:1,vibration:true});}catch(e){}
     const pend=await LN.getPending();
     if(pend.notifications&&pend.notifications.length)await LN.cancel({notifications:pend.notifications});
     const list=[],now=Date.now();let n=1;
@@ -536,7 +622,7 @@ async function scheduleNative(){
         const hm=tt.split(":").map(Number);
         const at=new Date(d.getFullYear(),d.getMonth(),d.getDate(),hm[0],hm[1],0);
         if(at.getTime()<=now)return;
-        list.push({id:n++,title:"Vaqti keldi: "+tt,body:t.name,schedule:{at:at,allowWhileIdle:true},channelId:"budilnik"});
+        list.push({id:n++,title:tx("Vaqti keldi: ")+tt,body:dispName(t),schedule:{at:at,allowWhileIdle:true},channelId:"budilnik"});
       });
     }
     if(list.length)await LN.schedule({notifications:list});
@@ -545,10 +631,11 @@ async function scheduleNative(){
 }
 if(NATIVE){
   if(!S.nativeInit){S.nativeInit=true;S.remindOn=true;save();}
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden)scheduleNative();});
-  scheduleNative();
+  document.addEventListener("visibilitychange",()=>{if(document.hidden){pushWidget();}else{scheduleNative();pushWidget();}});
+  scheduleNative();pushWidget();
 }
 render();tick();
+if(!S.lang)showLangChooser();
 </script>
 </body>
 </html>

@@ -1,9 +1,17 @@
-"""Android manifestga budilnik uchun kerakli ruxsatlarni qo'shadi."""
+"""Android loyihasini tayyorlaydi: ruxsatlar, vidjet kodi va vidjet e'loni."""
 import pathlib
+import shutil
 import sys
 
-p = pathlib.Path("android/app/src/main/AndroidManifest.xml")
-s = p.read_text(encoding="utf-8")
+ROOT = pathlib.Path(".")
+MAIN = ROOT / "android/app/src/main"
+MANIFEST = MAIN / "AndroidManifest.xml"
+NATIVE = ROOT / "native"
+
+# ---- 1. Ruxsatlar ----
+s = MANIFEST.read_text(encoding="utf-8")
+if "</manifest>" not in s or "</application>" not in s:
+    sys.exit("AndroidManifest.xml topilmadi yoki buzilgan")
 
 perms = [
     "android.permission.POST_NOTIFICATIONS",
@@ -17,9 +25,48 @@ add = ""
 for q in perms:
     if q not in s:
         add += f'    <uses-permission android:name="{q}" />\n'
-
-if "</manifest>" not in s:
-    sys.exit("AndroidManifest.xml topilmadi yoki buzilgan")
 s = s.replace("</manifest>", add + "</manifest>")
-p.write_text(s, encoding="utf-8")
-print("Ruxsatlar qo'shildi:", len(add.splitlines()), "ta")
+
+# ---- 2. Vidjet e'loni ----
+receiver = """
+        <receiver
+            android:name="uz.kunlikreja.app.TaskWidgetProvider"
+            android:exported="true"
+            android:label="Kunlik Reja: bugungi ishlar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
+"""
+if "TaskWidgetProvider" not in s:
+    s = s.replace("</application>", receiver + "    </application>")
+MANIFEST.write_text(s, encoding="utf-8")
+print("Manifest yangilandi")
+
+# ---- 3. Vidjet va ko'prik kodini nusxalash ----
+mains = list((MAIN / "java").rglob("MainActivity.java"))
+if len(mains) != 1:
+    sys.exit(f"MainActivity.java topilmadi: {mains}")
+java_dir = mains[0].parent
+old = mains[0].read_text(encoding="utf-8")
+if "package uz.kunlikreja.app;" not in old:
+    sys.exit("Paket nomi kutilgandan boshqacha: capacitor.config.json'dagi appId ni tekshiring")
+
+targets = {
+    "MainActivity.java": java_dir,
+    "WidgetBridgePlugin.java": java_dir,
+    "TaskWidgetProvider.java": java_dir,
+    "widget_tasks.xml": MAIN / "res/layout",
+    "widget_bg.xml": MAIN / "res/drawable",
+    "widget_info.xml": MAIN / "res/xml",
+}
+for name, dest in targets.items():
+    src = NATIVE / name
+    if not src.exists():
+        sys.exit(f"native/{name} topilmadi")
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, dest / name)
+    print("Nusxalandi:", name)
