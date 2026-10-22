@@ -4,5 +4,13 @@
   "webDir": "www",
   "android": {
     "backgroundColor": "#111816"
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": [
+        "google.com"
+      ]
+    }
   }
 }

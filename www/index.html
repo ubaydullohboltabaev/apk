@@ -283,7 +283,10 @@ try{const r=localStorage.getItem(KEY); if(r) S=JSON.parse(r);}catch(e){}
 if(!S||!Array.isArray(S.tasks)) S={tasks:defaults(),done:{},fired:{},snooze:[],remindOn:false,sample:true};
 /* eski saqlangan reja bo'lsa, namoz vazifalarini avtomatik vaqtga ulash */
 S.tasks.forEach(t=>{if(t.prayer===undefined){const i=PRAYERS.findIndex(p=>t.name.toLowerCase().startsWith(p.toLowerCase())&&/namoz/i.test(t.name));if(i>=0)t.prayer=i;}});
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}if(typeof queueSchedule==="function")queueSchedule();}
+function hsh(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return h;}
+function syncPayload(){return JSON.stringify({tasks:S.tasks,done:S.done,sample:S.sample,lang:S.lang||null});}
+function save(){try{const h=hsh(syncPayload());if(h!==S.syncH){S.syncH=h;S.updatedAt=Date.now();S.dirty=true;}localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  if(typeof queueSchedule==="function")queueSchedule();if(typeof queuePush==="function")queuePush();}
 
 /* ---------- Til: lotin / kirill ---------- */
 var LANG=(S&&S.lang==="cy")?"cy":"lat";
@@ -317,7 +320,7 @@ function convCy(s){
   return out;
 }
 function lat2cyr(s){
-  return String(s).split(/(YouTube|APK|GitHub)/).map((p,i)=>i%2?p:convCy(p)).join("");
+  return String(s).split(/(YouTube|APK|GitHub|Google|Gmail)/).map((p,i)=>i%2?p:convCy(p)).join("");
 }
 function tx(s){return LANG==="cy"?lat2cyr(s):s;}
 function dispName(t){return (LANG==="cy"&&DEFLAT[t.name])?lat2cyr(t.name):t.name;}
@@ -344,7 +347,7 @@ function showLangChooser(){
   L.innerHTML='<div class="overlay" id="lang-ov"><div class="sheet u" role="dialog" aria-label="Til / Тил"><h2>Tilni tanlang · Тилни танланг</h2>'
    +'<p class="note">Keyinroq «Rejalar» bo\'limida o\'zgartirish mumkin. · Кейинроқ «Режалар» бўлимида ўзгартириш мумкин.</p>'
    +'<div class="actions"><button class="btn primary" type="button" data-lg="lat">O\'zbekcha (lotin)</button><button class="btn primary" type="button" data-lg="cy">Ўзбекча (кирилл)</button></div></div></div>';
-  L.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{L.innerHTML="";setLang(b.dataset.lg);});
+  L.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{L.innerHTML="";setLang(b.dataset.lg);if(typeof initAuth==="function")initAuth();});
 }
 
 
@@ -453,6 +456,7 @@ function renderPlan(){
   const byTime=(a,b)=>(tm(a,tk)?mins(tm(a,tk)):9999)-(tm(b,tk)?mins(tm(b,tk)):9999);
   const row=t=>`<button class="task" data-edit="${t.id}"><span class="body"><span class="name u">${esc(dispName(t))}</span><span class="meta">${catLabel(t)}<span>${t.date?dateText(t.date):daysText(t.days)}</span>${t.prayer!=null?'<span class="tag">namoz jadvali</span>':""}${t.remind&&tm(t,tk)?SVG_BELL:""}</span></span><span class="time num">${tm(t,tk)||"—"}</span></button>`;
   let h=`<div class="top"><div class="date"><small>Boshqaruv</small><h1>Rejalar</h1><p>Istalgan vazifani bosib, nomini, vaqtini, kunini va budilnigini o'zgartiring.</p></div></div>
+   ${accountCard()}
    <div class="card u"><span class="sub">Til / Тил</span><div class="seg"><button type="button" data-lang="lat" aria-pressed="${LANG==="lat"}">O'zbekcha (lotin)</button><button type="button" data-lang="cy" aria-pressed="${LANG==="cy"}">Ўзбекча (кирилл)</button></div></div>
    <button class="btn primary" id="addTask">Yangi vazifa qo'shish</button>
    <div class="sec"><h2>Doimiy vazifalar</h2><span>${rec.length} ta</span></div><div class="list">`;
@@ -561,6 +565,9 @@ function render(){
   const hs=$("#hideSample");if(hs)hs.onclick=()=>{S.sample=false;save();render();};
   const ad=$("#addTask");if(ad)ad.onclick=()=>openForm(null);
   app.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+  const si=$("#signIn");if(si)si.onclick=()=>showLogin();
+  const so=$("#signOut");if(so)so.onclick=()=>doSignOut();
+  const sb=$("#syncBtn");if(sb)sb.onclick=()=>syncNow(true);
   app.querySelectorAll("[data-bell]").forEach(b=>b.onclick=()=>{const t=S.tasks.find(x=>x.id===b.dataset.bell);if(!t)return;t.remind=!t.remind;
     if(t.remind&&!S.remindOn){unlockAudio();S.remindOn=true;try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(x){}}
     save();render();});
@@ -634,8 +641,125 @@ if(NATIVE){
   document.addEventListener("visibilitychange",()=>{if(document.hidden){pushWidget();}else{scheduleNative();pushWidget();}});
   scheduleNative();pushWidget();
 }
+/* ---------- Hisob: Google bilan kirish va bulutga saqlash (Firebase) ---------- */
+var FS_URL="https://firestore.googleapis.com/v1/projects/kunlik-reja-e9d69/databases/(default)/documents/users/";
+var user=null,syncing=false,pushT=null,syncMsg="",syncErr="";
+function getFA(){
+  const C=window.Capacitor;if(!C)return null;
+  if(C.Plugins&&C.Plugins.FirebaseAuthentication)return C.Plugins.FirebaseAuthentication;
+  try{return C.registerPlugin?C.registerPlugin("FirebaseAuthentication"):null;}catch(e){return null;}
+}
+function hm(){const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());}
+function setSync(m,err){syncMsg=m;syncErr=err||"";
+  if(typeof render==="function"&&tab==="plan"&&!$("#frm")&&!showing&&!document.querySelector("#login-ov"))render();}
+function accountCard(){
+  if(!NATIVE)return "";
+  if(user)return '<div class="card"><span class="sub">Hisob</span><p class="note"><span class="u">'+esc(user.email||user.displayName||"")+'</span></p>'
+    +'<p class="note">'+esc(syncMsg||"Rejalaringiz bulutda saqlanadi.")+(syncErr?' <span class="u">('+esc(syncErr)+')</span>':'')+'</p>'
+    +'<div class="actions"><button class="btn" type="button" id="syncBtn">Hozir saqlash</button><button class="btn" type="button" id="signOut">Chiqish</button></div></div>';
+  return '<div class="card"><span class="sub">Hisob</span><p class="note">Kirmasangiz, rejalar faqat shu telefonda saqlanadi. Kirsangiz, boshqa telefonda ham qayta tiklanadi.</p>'
+    +'<button class="btn primary" type="button" id="signIn">Google bilan kirish</button></div>';
+}
+async function idToken(force){const r=await getFA().getIdToken({forceRefresh:!!force});return r.token;}
+async function fsReq(method,body,force){
+  const tk=await idToken(force);
+  const url=FS_URL+user.uid+(method==="PATCH"?"?updateMask.fieldPaths=data&updateMask.fieldPaths=updatedAt":"");
+  const r=await fetch(url,{method:method,headers:{"Authorization":"Bearer "+tk,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+  if(r.status===401&&!force)return fsReq(method,body,true);
+  return r;
+}
+async function pullRemote(){
+  const r=await fsReq("GET");
+  if(r.status===404)return null;
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const j=await r.json(),f=j.fields||{};
+  if(!f.data||!f.data.stringValue)return null;
+  return {data:JSON.parse(f.data.stringValue),updatedAt:Number((f.updatedAt&&f.updatedAt.integerValue)||0)};
+}
+async function pushRemote(){
+  const h=S.syncH,ua=S.updatedAt||Date.now();
+  const r=await fsReq("PATCH",{fields:{data:{stringValue:syncPayload()},updatedAt:{integerValue:String(ua)}}});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  if(S.syncH===h){S.dirty=false;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+}
+function applyRemote(rm){
+  const d=rm.data||{};
+  if(Array.isArray(d.tasks))S.tasks=d.tasks;
+  S.done=d.done||{};S.sample=!!d.sample;
+  if(d.lang){S.lang=d.lang;LANG=d.lang==="cy"?"cy":"lat";}
+  S.syncH=hsh(syncPayload());S.updatedAt=rm.updatedAt;S.dirty=false;
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  queueSchedule();render();
+}
+async function syncNow(manual){
+  if(!NATIVE||!user||syncing)return;
+  syncing=true;
+  try{
+    const rm=await pullRemote();
+    if(!rm){await pushRemote();}
+    else if(S.syncUid!==user.uid){S.syncUid=user.uid;applyRemote(rm);}
+    else if(rm.updatedAt>(S.updatedAt||0)){applyRemote(rm);}
+    else if(S.dirty||rm.updatedAt<(S.updatedAt||0)){await pushRemote();}
+    S.syncUid=user.uid;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+    setSync("Bulutga saqlandi · "+hm());
+  }catch(e){
+    setSync("Bulutga saqlab bo'lmadi. Internetni tekshiring, keyinroq qayta uriniladi.",(e&&e.message)||String(e));
+  }
+  syncing=false;
+  if(S.dirty)queuePush();
+}
+function queuePush(){
+  if(!NATIVE||!user)return;
+  clearTimeout(pushT);
+  pushT=setTimeout(function(){if(S.dirty)syncNow();},2500);
+}
+function showLogin(msg){
+  const L=document.querySelector("#layer");if(!L)return;
+  S.loginAsked=true;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  L.innerHTML='<div class="overlay" id="login-ov"><div class="sheet" role="dialog" aria-label="Hisobga kirish"><h2>Hisobga kiring</h2>'
+   +'<p class="note">Rejalaringiz bulutda saqlanadi: telefonni almashtirsangiz yoki ilovani qayta o\'rnatsangiz ham, shu hisobga kirsangiz hammasi qaytadi.</p>'
+   +'<p class="note" id="login-msg" style="color:var(--bad)">'+(msg?'<span class="u">'+esc(msg)+'</span>':'')+'</p>'
+   +'<div class="actions"><button class="btn primary" type="button" id="lg-google">Google bilan kirish</button><button class="btn" type="button" id="lg-skip">Hozircha kirmasdan davom etish</button></div></div></div>';
+  localizeDom(L);
+  $("#lg-skip").onclick=()=>{L.innerHTML="";render();};
+  $("#lg-google").onclick=doGoogle;
+}
+async function doGoogle(){
+  const FA=getFA(),L=document.querySelector("#layer"),mm=$("#login-msg");
+  if(!FA){if(mm)mm.textContent=tx("Kirish moduli topilmadi.");return;}
+  const btn=$("#lg-google");if(btn)btn.disabled=true;
+  if(mm){mm.style.color="var(--muted)";mm.textContent=tx("Kirilmoqda...");}
+  try{
+    const r=await FA.signInWithGoogle();
+    user=r.user||(await FA.getCurrentUser()).user;
+    if(!user)throw new Error("user yo'q");
+    L.innerHTML="";
+    await syncNow(true);render();
+  }catch(e){
+    if(btn)btn.disabled=false;
+    if(mm){mm.style.color="var(--bad)";mm.innerHTML=esc(tx("Kirib bo'lmadi yoki bekor qilindi."))+' <span class="u">'+esc((e&&e.message)||String(e))+'</span>';}
+  }
+}
+async function doSignOut(){
+  const FA=getFA();if(!FA||!user)return;
+  if(S.dirty){await syncNow();}
+  const warn=S.dirty?"Internet yo'q: oxirgi o'zgarishlar bulutga saqlanmagan. Baribir chiqilsinmi? Telefondagi reja tozalanadi.":"Chiqilsinmi? Bu telefondagi reja tozalanadi, lekin bulutda saqlanib qoladi. Qayta kirsangiz tiklanadi.";
+  if(!confirm(tx(warn)))return;
+  try{await FA.signOut();}catch(e){}
+  user=null;
+  S.tasks=defaults();S.done={};S.fired={};S.snooze=[];S.sample=true;S.syncUid=null;S.updatedAt=0;S.dirty=false;S.loginAsked=true;
+  S.syncH=null;save();queueSchedule();syncMsg="";syncErr="";render();
+}
+async function initAuth(){
+  if(!NATIVE)return;
+  const FA=getFA();if(!FA)return;
+  try{const r=await FA.getCurrentUser();user=r.user||null;}catch(e){}
+  if(user){syncNow();render();}
+  else if(!S.loginAsked&&S.lang)showLogin();
+}
+if(NATIVE)document.addEventListener("visibilitychange",()=>{if(!document.hidden&&user)syncNow();});
 render();tick();
-if(!S.lang)showLangChooser();
+if(!S.lang)showLangChooser();else initAuth();
 </script>
 </body>
 </html>

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "176245168031",
+    "project_id": "kunlik-reja-e9d69",
+    "storage_bucket": "kunlik-reja-e9d69.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:176245168031:android:55b4478b468675bc43cfaa",
+        "android_client_info": {
+          "package_name": "uz.kunlikreja.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "176245168031-of35rgni83fm0k13jn501gctmr3hape4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "uz.kunlikreja.app",
+            "certificate_hash": "efbfded183f2394fd9f0eb0f03d8d21cfa6a99e4"
+          }
+        },
+        {
+          "client_id": "176245168031-ctklesfsrsd0esbch3rkn3lpa1fqrc3f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQeA4eb-IUWTZVrEXdly7uCKgCslCavhI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "176245168031-ctklesfsrsd0esbch3rkn3lpa1fqrc3f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

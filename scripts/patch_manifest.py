@@ -62,6 +62,8 @@ targets = {
     "widget_tasks.xml": MAIN / "res/layout",
     "widget_bg.xml": MAIN / "res/drawable",
     "widget_info.xml": MAIN / "res/xml",
+    "google-services.json": ROOT / "android/app",
+    "debug.keystore": ROOT / "android/app",
 }
 for name, dest in targets.items():
     src = NATIVE / name
@@ -70,3 +72,31 @@ for name, dest in targets.items():
     dest.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, dest / name)
     print("Nusxalandi:", name)
+
+# ---- 4. Google bilan kirish: Gradle sozlamalari ----
+import re
+var = ROOT / "android/variables.gradle"
+v = var.read_text(encoding="utf-8")
+if "rgcfaIncludeGoogle" not in v:
+    v = v.replace("ext {", "ext {\n    rgcfaIncludeGoogle = true", 1)
+    var.write_text(v, encoding="utf-8")
+    print("variables.gradle: Google kirish yoqildi")
+
+# ---- 5. Doimiy imzo (SHA-1 har safar bir xil bo'lishi uchun) ----
+gr = ROOT / "android/app/build.gradle"
+g = gr.read_text(encoding="utf-8")
+if "debug.keystore" not in g:
+    sign = """android {
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }"""
+    g, n = re.subn(r"^android \{", sign, g, count=1, flags=re.M)
+    if n != 1:
+        sys.exit("app/build.gradle ichida 'android {' topilmadi")
+    gr.write_text(g, encoding="utf-8")
+    print("Doimiy imzo ulandi")
