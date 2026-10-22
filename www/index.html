@@ -117,7 +117,7 @@ h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
 .tag{font-size:12px;border-radius:999px;padding:2px 8px;background:var(--bg);color:var(--muted);font-weight:600}
 .nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
   padding:8px max(16px,env(safe-area-inset-left,0px)) calc(8px + env(safe-area-inset-bottom,0px));z-index:5}
-.nav div{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.nav div{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .nav button{border:0;background:transparent;border-radius:10px;padding:8px;min-height:48px;color:var(--muted);font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px}
 .nav button svg{width:22px;height:22px;stroke:currentColor}
 .nav button[aria-selected="true"]{color:var(--ok);background:var(--ok-soft)}
@@ -146,6 +146,9 @@ h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
 @keyframes pulse{50%{transform:scale(1.06)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .note{font-size:13px;color:var(--muted);margin:0}
+input[type=range]{width:100%;accent-color:var(--ok);min-height:32px}
+.rng{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.btn.danger{color:var(--bad)}
 </style>
 
 </head><body>
@@ -154,6 +157,7 @@ h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance}
   <button role="tab" id="tab-today" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg><span class="nl" data-l="Bugun">Bugun</span></button>
   <button role="tab" id="tab-stats" data-tab="stats"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><span class="nl" data-l="Tahlil">Tahlil</span></button>
   <button role="tab" id="tab-plan" data-tab="plan"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg><span class="nl" data-l="Rejalar">Rejalar</span></button>
+  <button role="tab" id="tab-set" data-tab="set"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="nl" data-l="Sozlamalar">Sozlamalar</span></button>
 </div></div>
 <div id="layer"></div>
 
@@ -265,22 +269,11 @@ const PT={};
 const PT_END="31-dekabr";
 
 let uid=1; const nid=()=>"t"+Date.now().toString(36)+(uid++);
-function defaults(){return [
- {id:nid(),name:"Bomdod namozi",cat:0,time:"05:00",prayer:0,remind:true,days:ALL},
- {id:nid(),name:"Diniy kitob: 5 bet o'qish",cat:0,time:"06:00",remind:true,days:ALL},
- {id:nid(),name:"Kurs bo'yicha 1 soat shug'ullanish",cat:2,time:"09:00",remind:true,days:ALL},
- {id:nid(),name:"Peshin namozi",cat:0,time:"12:15",prayer:1,remind:true,days:ALL},
- {id:nid(),name:"YouTube uchun video yasash",cat:3,time:"14:00",remind:true,days:ALL},
- {id:nid(),name:"Asr namozi",cat:0,time:"16:00",prayer:2,remind:true,days:ALL},
- {id:nid(),name:"Shom namozi",cat:0,time:"17:55",prayer:3,remind:true,days:ALL},
- {id:nid(),name:"Videoni kanalga joylash",cat:3,time:"18:30",remind:true,days:ALL},
- {id:nid(),name:"Xufton namozi",cat:0,time:"19:30",prayer:4,remind:true,days:ALL},
- {id:nid(),name:"Dunyoviy bilim: 5 bet kitob o'qish",cat:1,time:"20:30",remind:true,days:ALL}
-];}
+function defaults(){return [];}
 
 let S=null;
 try{const r=localStorage.getItem(KEY); if(r) S=JSON.parse(r);}catch(e){}
-if(!S||!Array.isArray(S.tasks)) S={tasks:defaults(),done:{},fired:{},snooze:[],remindOn:false,sample:true};
+if(!S||!Array.isArray(S.tasks)) S={tasks:[],done:{},fired:{},snooze:[],remindOn:false,sample:false};
 /* eski saqlangan reja bo'lsa, namoz vazifalarini avtomatik vaqtga ulash */
 S.tasks.forEach(t=>{if(t.prayer===undefined){const i=PRAYERS.findIndex(p=>t.name.toLowerCase().startsWith(p.toLowerCase())&&/namoz/i.test(t.name));if(i>=0)t.prayer=i;}});
 function hsh(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return h;}
@@ -389,10 +382,10 @@ function renderToday(){
   h+=`<form class="quick" id="quick" autocomplete="off"><input type="text" id="q-name" placeholder="Bugunga yangi vazifa yozing" aria-label="Yangi vazifa nomi"><button class="btn primary" type="submit">Qo'shish</button></form>
       <button class="btn" id="q-more" type="button">Vaqt, kun va budilnik bilan qo'shish</button>`;
   if(!S.remindOn) h+=`<div class="banner"><p>Budilnik o'chiq. Yoqsangiz, vaqti kelganda signal chiqadi (sahifa ochiq turishi kerak).</p><button class="btn primary small" id="enable">Budilnikni yoqish</button></div>`;
-  else h+=`<div class="banner${NATIVE&&nativeMsg&&!/^Telefon budilnigi yoqilgan/.test(nativeMsg)?"":" ok"}"><p>${NATIVE&&nativeMsg?esc(nativeMsg):"Budilnik yoqilgan. Qo'ng'iroq belgisi bosilgan vazifalargagina signal chiqadi."}</p><button class="btn small" id="testAlarm">Sinab ko'rish</button></div>`;
+  else if(NATIVE&&nativeMsg&&!/^Telefon budilnigi yoqilgan/.test(nativeMsg)) h+=`<div class="banner"><p>${esc(nativeMsg)}</p></div>`;
   if(S.sample) h+=`<div class="banner"><p>Bu namuna reja: namoz vaqtlari Toshkent uchun ${PT_END}gacha o'zi qo'yiladi, boshqa soatlarni o'zingizga moslang.</p><button class="btn small" id="hideSample">Tushunarli</button></div>`;
   h+=`<div class="sec"><h2>Bugungi ishlar</h2><span>${st.left.length} ta qoldi</span></div><div class="list">`;
-  if(!st.list.length) h+=`<div class="empty">Bugunga vazifa yo'q. Yuqoridagi maydonga yozib qo'shing.</div>`;
+  if(!st.list.length) h+=`<div class="empty">${S.tasks.length?"Bugunga vazifa yo'q. Yuqoridagi maydonga yozib qo'shing.":"Hali vazifa qo'shilmagan. Yuqoridagi maydonga yozing yoki «Sozlamalar» bo'limidan 5 vaqt namozni qo'shing."}</div>`;
   st.list.forEach(t=>{const d=isDone(k,t.id),tt=tm(t,k),late=!d&&tt&&mins(tt)<nowM;
     h+=`<div class="item"><button class="task${d?" done":""}${late?" late":""}${next&&next.id===t.id?" next":""}" data-toggle="${t.id}" aria-pressed="${d}">
       <span class="box">${SVG_CHECK}</span>
@@ -450,14 +443,34 @@ function renderStats(){
 /* ---------- Rejalar ---------- */
 function daysText(d){if(d.length===7)return "har kuni";if(!d.length)return "kun tanlanmagan";return d.slice().sort().map(i=>DAYS[i]).join(", ");}
 function dateText(k){const d=parseKey(k);return d.getDate()+"-"+MO[d.getMonth()];}
+function applyScale(){const z=(S.scale||100)/100;const a=$("#app");if(a)a.style.zoom=z;const l=$("#layer");if(l)l.style.zoom=z;}
+function addPrayers(){
+  const dflt=["05:23","12:15","16:00","17:55","19:30"];
+  PRAYERS.forEach((p,i)=>{if(S.tasks.some(t=>t.prayer===i))return;S.tasks.push({id:nid(),name:p+" namozi",cat:0,time:dflt[i]||"",prayer:i,remind:true,days:ALL.slice()});});
+  S.sample=false;save();render();
+}
+function renderSet(){
+  const sc=S.scale||100,wa=S.walpha==null?90:S.walpha,ws=S.wsize||13;
+  let h=`<div class="top"><div class="date"><small>Ilova</small><h1>Sozlamalar</h1></div></div>`;
+  h+=accountCard();
+  h+=`<div class="card u"><span class="sub">Til / Тил</span><div class="seg"><button type="button" data-lang="lat" aria-pressed="${LANG==="lat"}">O'zbekcha (lotin)</button><button type="button" data-lang="cy" aria-pressed="${LANG==="cy"}">Ўзбекча (кирилл)</button></div></div>`;
+  h+=`<div class="card"><span class="sub">Ko'rinish</span><label class="rng"><span>Ilova o'lchami: <b id="v-scale">${sc}%</b></span><input type="range" id="r-scale" min="80" max="130" step="5" value="${sc}"></label><p class="note">Matn va tugmalar kattaroq yoki kichikroq bo'ladi.</p></div>`;
+  h+=`<div class="card"><span class="sub">Budilnik</span><p class="note">${NATIVE&&nativeMsg?esc(nativeMsg):(S.remindOn?"Budilnik yoqilgan. Qo'ng'iroq belgisi bosilgan vazifalargagina signal chiqadi.":"Budilnik o'chiq.")}</p>
+    <div class="actions"><button class="btn" type="button" id="testAlarm">Sinab ko'rish</button>${S.remindOn?"":'<button class="btn primary" type="button" id="enable">Budilnikni yoqish</button>'}</div></div>`;
+  if(NATIVE)h+=`<div class="card"><span class="sub">Vidjet (bosh ekran)</span>
+    <label class="rng"><span>Shaffoflik: <b id="v-walpha">${wa}%</b></span><input type="range" id="r-walpha" min="30" max="100" step="5" value="${wa}"></label>
+    <label class="rng"><span>Matn o'lchami: <b id="v-wsize">${ws}</b></span><input type="range" id="r-wsize" min="10" max="18" step="1" value="${ws}"></label>
+    <p class="note">Vidjetda vazifani bosib bajarilgan deb belgilash, «+» bilan yangi vazifa qo'shish mumkin.</p></div>`;
+  h+=`<div class="card"><span class="sub">Namoz vaqtlari</span><p class="note">Toshkent uchun jadval ${PT_END}gacha. Bomdod, Peshin, Asr, Shom va Xufton vazifalarini bir bosishda qo'shadi.</p><button class="btn" type="button" id="addPray">5 vaqt namozni qo'shish</button></div>`;
+  h+=`<div class="card"><span class="sub">Ma'lumotlar</span><button class="btn danger" type="button" id="clearAll">Barcha vazifalarni o'chirish</button></div>`;
+  return h;
+}
 function renderPlan(){
   const tk=dkey(new Date());
   const rec=S.tasks.filter(t=>!t.date), one=S.tasks.filter(t=>t.date).sort((a,b)=>a.date.localeCompare(b.date));
   const byTime=(a,b)=>(tm(a,tk)?mins(tm(a,tk)):9999)-(tm(b,tk)?mins(tm(b,tk)):9999);
   const row=t=>`<button class="task" data-edit="${t.id}"><span class="body"><span class="name u">${esc(dispName(t))}</span><span class="meta">${catLabel(t)}<span>${t.date?dateText(t.date):daysText(t.days)}</span>${t.prayer!=null?'<span class="tag">namoz jadvali</span>':""}${t.remind&&tm(t,tk)?SVG_BELL:""}</span></span><span class="time num">${tm(t,tk)||"—"}</span></button>`;
   let h=`<div class="top"><div class="date"><small>Boshqaruv</small><h1>Rejalar</h1><p>Istalgan vazifani bosib, nomini, vaqtini, kunini va budilnigini o'zgartiring.</p></div></div>
-   ${accountCard()}
-   <div class="card u"><span class="sub">Til / Тил</span><div class="seg"><button type="button" data-lang="lat" aria-pressed="${LANG==="lat"}">O'zbekcha (lotin)</button><button type="button" data-lang="cy" aria-pressed="${LANG==="cy"}">Ўзбекча (кирилл)</button></div></div>
    <button class="btn primary" id="addTask">Yangi vazifa qo'shish</button>
    <div class="sec"><h2>Doimiy vazifalar</h2><span>${rec.length} ta</span></div><div class="list">`;
   if(!rec.length) h+=`<div class="empty">Doimiy vazifa yo'q.</div>`;
@@ -553,7 +566,7 @@ setInterval(tick,15000);
 /* ---------- Umumiy ---------- */
 function render(){
   const app=$("#app");
-  app.innerHTML= tab==="today"?renderToday():tab==="stats"?renderStats():renderPlan();
+  app.innerHTML= tab==="today"?renderToday():tab==="stats"?renderStats():tab==="set"?renderSet():renderPlan();applyScale();
   localizeDom(app);updateNav();
   document.querySelectorAll(".nav [data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));
   app.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>toggle(b.dataset.toggle));
@@ -568,6 +581,12 @@ function render(){
   const si=$("#signIn");if(si)si.onclick=()=>showLogin();
   const so=$("#signOut");if(so)so.onclick=()=>doSignOut();
   const sb=$("#syncBtn");if(sb)sb.onclick=()=>syncNow(true);
+  const ap=$("#addPray");if(ap)ap.onclick=addPrayers;
+  const ca=$("#clearAll");if(ca)ca.onclick=()=>{if(confirm(tx("Barcha vazifalar va belgilar o'chirilsinmi? Hisobga kirgan bo'lsangiz, bulutdagi nusxa ham yangilanadi."))){S.tasks=[];S.done={};S.sample=false;save();render();}};
+  [["r-scale","v-scale","scale","%"],["r-walpha","v-walpha","walpha","%"],["r-wsize","v-wsize","wsize",""]].forEach(a=>{
+    const r=$("#"+a[0]);if(!r)return;
+    r.oninput=()=>{S[a[2]]=+r.value;$("#"+a[1]).textContent=r.value+a[3];if(a[2]==="scale")applyScale();};
+    r.onchange=()=>save();});
   app.querySelectorAll("[data-bell]").forEach(b=>b.onclick=()=>{const t=S.tasks.find(x=>x.id===b.dataset.bell);if(!t)return;t.remind=!t.remind;
     if(t.remind&&!S.remindOn){unlockAudio();S.remindOn=true;try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();}catch(x){}}
     save();render();});
@@ -583,21 +602,30 @@ setInterval(()=>{const k=dkey(new Date());if(k!==lastDay){lastDay=k;selDate=k;if
 var NATIVE=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 var schedT=null;
 function queueSchedule(){if(!NATIVE)return;clearTimeout(schedT);schedT=setTimeout(function(){scheduleNative();pushWidget();},800);}
-function pushWidget(){
+function getWB(){const C=window.Capacitor;if(!C)return null;try{return (C.Plugins&&C.Plugins.WidgetBridge)||(C.registerPlugin?C.registerPlugin("WidgetBridge"):null);}catch(e){return null;}}
+async function consumeWidget(){
   if(!NATIVE)return;
   try{
-    const C=window.Capacitor;
-    const W=(C.Plugins&&C.Plugins.WidgetBridge)||(C.registerPlugin?C.registerPlugin("WidgetBridge"):null);
-    if(!W||!W.update)return;
-    const now=new Date(),k=dkey(now),st=dayStats(now),n=st.left.length,lines=[];
-    if(!st.list.length)lines.push(tx("Bugunga vazifa yo'q"));
-    else if(!n)lines.push(tx("Hammasi bajarildi")+" ✓");
-    else{
-      const show=n>8?7:n;
-      for(let i=0;i<show;i++){const t=st.left[i],tt=tm(t,k);lines.push((tt||"•")+"  "+dispName(t));}
-      if(n>show)lines.push("+"+(n-show)+" "+tx("ta yana"));
-    }
-    const p=W.update({json:JSON.stringify({date:k,title:tx("Kunlik Reja"),header:tx("Bugun")+"  "+st.done.length+"/"+st.list.length,lines:lines,stale:tx("Yangilash uchun ilovani oching")})});
+    const W=getWB();if(!W||!W.consume)return;
+    const r=await W.consume();let ch=false;
+    (r.adds||[]).forEach(a=>{if(!a||!a.name||S.tasks.some(t=>t.id===a.id))return;
+      S.tasks.push({id:a.id,name:String(a.name).slice(0,120),cat:4,time:"",prayer:null,remind:false,days:ALL.slice(),date:a.date||dkey(new Date())});S.sample=false;ch=true;});
+    (r.toggles||[]).forEach(a=>{if(!a||!S.tasks.some(t=>t.id===a.id))return;const k=a.date;if(!isDone(k,a.id)){(S.done[k]=S.done[k]||[]).push(a.id);ch=true;}});
+    if(ch){save();if(!$("#frm")&&!showing)render();}
+  }catch(e){}
+}
+async function pushWidget(){
+  if(!NATIVE)return;
+  try{
+    await consumeWidget();
+    const W=getWB();if(!W||!W.update)return;
+    const now=new Date(),k=dkey(now),st=dayStats(now),items=[];
+    st.left.slice(0,7).forEach(t=>{items.push({id:t.id,t:tm(t,k)||"",n:dispName(t)});});
+    const p=W.update({json:JSON.stringify({date:k,title:tx("Kunlik Reja"),hdr:tx("Bugun"),done:st.done.length,total:st.list.length,
+      items:items,more:Math.max(0,st.left.length-items.length),
+      empty:st.list.length?tx("Hammasi bajarildi")+" ✓":tx("Bugunga vazifa yo'q"),moreTxt:tx("ta yana"),
+      stale:tx("Yangilash uchun ilovani oching"),alpha:S.walpha==null?90:S.walpha,size:S.wsize||13,
+      addTitle:tx("Yangi vazifa"),addHint:tx("Vazifa nomi"),addBtn:tx("Qo'shish"),cancelBtn:tx("Bekor qilish")})});
     if(p&&p.catch)p.catch(function(){});
   }catch(e){}
 }
@@ -642,7 +670,8 @@ if(NATIVE){
   scheduleNative();pushWidget();
 }
 /* ---------- Hisob: Google bilan kirish va bulutga saqlash (Firebase) ---------- */
-var FS_URL="https://firestore.googleapis.com/v1/projects/kunlik-reja-e9d69/databases/(default)/documents/users/";
+var FS_DB="default";
+function fsUrl(){return "https://firestore.googleapis.com/v1/projects/kunlik-reja-e9d69/databases/"+FS_DB+"/documents/users/";}
 var user=null,syncing=false,pushT=null,syncMsg="",syncErr="";
 function getFA(){
   const C=window.Capacitor;if(!C)return null;
@@ -651,7 +680,7 @@ function getFA(){
 }
 function hm(){const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());}
 function setSync(m,err){syncMsg=m;syncErr=err||"";
-  if(typeof render==="function"&&tab==="plan"&&!$("#frm")&&!showing&&!document.querySelector("#login-ov"))render();}
+  if(typeof render==="function"&&tab==="set"&&!$("#frm")&&!showing&&!document.querySelector("#login-ov"))render();}
 function accountCard(){
   if(!NATIVE)return "";
   if(user)return '<div class="card"><span class="sub">Hisob</span><p class="note"><span class="u">'+esc(user.email||user.displayName||"")+'</span></p>'
@@ -663,9 +692,10 @@ function accountCard(){
 async function idToken(force){const r=await getFA().getIdToken({forceRefresh:!!force});return r.token;}
 async function fsReq(method,body,force){
   const tk=await idToken(force);
-  const url=FS_URL+user.uid+(method==="PATCH"?"?updateMask.fieldPaths=data&updateMask.fieldPaths=updatedAt":"");
+  const url=fsUrl()+user.uid+(method==="PATCH"?"?updateMask.fieldPaths=data&updateMask.fieldPaths=updatedAt":"");
   const r=await fetch(url,{method:method,headers:{"Authorization":"Bearer "+tk,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
   if(r.status===401&&!force)return fsReq(method,body,true);
+  if(method==="PATCH"&&r.status===404&&FS_DB==="default"){FS_DB="(default)";return fsReq(method,body,force);}
   return r;
 }
 async function pullRemote(){
@@ -747,7 +777,7 @@ async function doSignOut(){
   if(!confirm(tx(warn)))return;
   try{await FA.signOut();}catch(e){}
   user=null;
-  S.tasks=defaults();S.done={};S.fired={};S.snooze=[];S.sample=true;S.syncUid=null;S.updatedAt=0;S.dirty=false;S.loginAsked=true;
+  S.tasks=[];S.done={};S.fired={};S.snooze=[];S.sample=false;S.syncUid=null;S.updatedAt=0;S.dirty=false;S.loginAsked=true;
   S.syncH=null;save();queueSchedule();syncMsg="";syncErr="";render();
 }
 async function initAuth(){

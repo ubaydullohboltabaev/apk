@@ -41,8 +41,17 @@ receiver = """
                 android:resource="@xml/widget_info" />
         </receiver>
 """
+quickadd = """
+        <activity
+            android:name="uz.kunlikreja.app.QuickAddActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.DeviceDefault.Dialog"
+            android:windowSoftInputMode="stateVisible" />
+"""
 if "TaskWidgetProvider" not in s:
-    s = s.replace("</application>", receiver + "    </application>")
+    s = s.replace("</application>", receiver + quickadd + "    </application>")
 MANIFEST.write_text(s, encoding="utf-8")
 print("Manifest yangilandi")
 
@@ -59,6 +68,7 @@ targets = {
     "MainActivity.java": java_dir,
     "WidgetBridgePlugin.java": java_dir,
     "TaskWidgetProvider.java": java_dir,
+    "QuickAddActivity.java": java_dir,
     "widget_tasks.xml": MAIN / "res/layout",
     "widget_bg.xml": MAIN / "res/drawable",
     "widget_info.xml": MAIN / "res/xml",
