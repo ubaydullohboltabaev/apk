@@ -167,7 +167,7 @@ public class TaskWidgetProvider extends AppWidgetProvider {
         SharedPreferences sp = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String raw = sp.getString("data", "");
 
-        String header = "Kunlik Reja";
+        String header = "Rejam";
         String firstLine = null;
         String moreLine = null;
         String[] ids = new String[7];
@@ -205,7 +205,7 @@ public class TaskWidgetProvider extends AppWidgetProvider {
                 }
             }
         } catch (Exception e) {
-            firstLine = "Kunlik Reja";
+            firstLine = "Rejam";
         }
 
         if (alpha < 0) alpha = 0;

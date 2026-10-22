@@ -32,7 +32,7 @@ receiver = """
         <receiver
             android:name="uz.kunlikreja.app.TaskWidgetProvider"
             android:exported="true"
-            android:label="Kunlik Reja: bugungi ishlar">
+            android:label="Rejam: bugungi ishlar">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -110,3 +110,19 @@ if "debug.keystore" not in g:
         sys.exit("app/build.gradle ichida 'android {' topilmadi")
     gr.write_text(g, encoding="utf-8")
     print("Doimiy imzo ulandi")
+
+# ---- 6. Ikonka (Rejam) va fon rangi ----
+res = MAIN / "res"
+icons = NATIVE / "icons"
+if icons.exists():
+    for d in icons.iterdir():
+        if d.is_dir():
+            dest = res / d.name
+            dest.mkdir(parents=True, exist_ok=True)
+            for f in d.iterdir():
+                shutil.copyfile(f, dest / f.name)
+    (res / "values").mkdir(parents=True, exist_ok=True)
+    (res / "values/ic_launcher_background.xml").write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#051335</color>\n</resources>\n',
+        encoding="utf-8")
+    print("Ikonka almashtirildi")

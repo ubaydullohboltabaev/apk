@@ -1,4 +1,4 @@
-# Kunlik Reja: APK yig'ish
+# Rejam: APK yig'ish
 
 Loyiha tarkibi:
 - `www/index.html`: ilovaning o'zi (o'zbekcha lotin va kirill tillari)

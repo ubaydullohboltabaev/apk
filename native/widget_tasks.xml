@@ -31,7 +31,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Kunlik Reja"
+                android:text="Rejam"
                 android:textColor="#4FC0A6"
                 android:textSize="16sp"
                 android:textStyle="bold"
