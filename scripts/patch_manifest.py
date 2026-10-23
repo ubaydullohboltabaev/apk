@@ -28,19 +28,23 @@ for q in perms:
 s = s.replace("</manifest>", add + "</manifest>")
 
 # ---- 2. Vidjet e'loni ----
-receiver = """
+def make_receiver(cls, label, info):
+    return f"""
         <receiver
-            android:name="uz.kunlikreja.app.TaskWidgetProvider"
+            android:name="uz.kunlikreja.app.{cls}"
             android:exported="true"
-            android:label="Rejam: bugungi ishlar">
+            android:label="{label}">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/widget_info" />
+                android:resource="@xml/{info}" />
         </receiver>
 """
+receiver = (make_receiver("TaskWidgetSmall", "Rejam: kichik", "widget_info_small")
+            + make_receiver("TaskWidgetMedium", "Rejam: orta", "widget_info_medium")
+            + make_receiver("TaskWidgetProvider", "Rejam: katta", "widget_info"))
 quickadd = """
         <activity
             android:name="uz.kunlikreja.app.QuickAddActivity"
@@ -68,13 +72,22 @@ targets = {
     "MainActivity.java": java_dir,
     "WidgetBridgePlugin.java": java_dir,
     "TaskWidgetProvider.java": java_dir,
+    "TaskWidgetMedium.java": java_dir,
+    "TaskWidgetSmall.java": java_dir,
     "QuickAddActivity.java": java_dir,
     "widget_tasks.xml": MAIN / "res/layout",
+    "widget_medium.xml": MAIN / "res/layout",
+    "widget_small.xml": MAIN / "res/layout",
     "widget_bg.xml": MAIN / "res/drawable",
     "widget_info.xml": MAIN / "res/xml",
+    "widget_info_medium.xml": MAIN / "res/xml",
+    "widget_info_small.xml": MAIN / "res/xml",
     "google-services.json": ROOT / "android/app",
     "debug.keystore": ROOT / "android/app",
 }
+for i in range(5):
+    targets[f"widget_bg_dark_{i}.xml"] = MAIN / "res/drawable"
+    targets[f"widget_bg_light_{i}.xml"] = MAIN / "res/drawable"
 for name, dest in targets.items():
     src = NATIVE / name
     if not src.exists():
@@ -126,3 +139,12 @@ if icons.exists():
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#051335</color>\n</resources>\n',
         encoding="utf-8")
     print("Ikonka almashtirildi")
+
+# ---- 7. Budilnik ovozlari (res/raw) ----
+snd = NATIVE / "sounds"
+if snd.exists():
+    raw = res / "raw"
+    raw.mkdir(parents=True, exist_ok=True)
+    for f in snd.glob("*.wav"):
+        shutil.copyfile(f, raw / f.name)
+    print("Budilnik ovozlari nusxalandi")

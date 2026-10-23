@@ -181,6 +181,16 @@ h1,h2,h3{font-weight:800;letter-spacing:-.02em}
 .sheet h2{font-size:22px}
 .field label,.field .lab{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 .overlay.center{align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--ink)}
+.btn.tog[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:var(--on);box-shadow:0 10px 22px -12px var(--ok)}
+.tones{display:flex;flex-direction:column;gap:6px}
+.tone{display:flex;gap:6px;align-items:stretch}
+.tonepick{flex:1;display:flex;align-items:center;gap:12px;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:10px 14px;min-height:46px;font-weight:700}
+.tonepick .rd{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none}
+.tonepick[aria-pressed="true"]{border-color:var(--ok);background:var(--ok-soft)}
+.tonepick[aria-pressed="true"] .rd{border-color:var(--ok);background:radial-gradient(var(--ok) 0 45%,transparent 50%)}
+.iconbtn.sm{width:46px;height:auto;align-self:stretch;font-size:14px;color:var(--ok)}
 .dlg{text-align:left}
 .dlg p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
@@ -358,7 +368,7 @@ function convCy(s){
   return out;
 }
 function lat2cyr(s){
-  return String(s).split(/(YouTube|APK|GitHub|Google|Gmail)/).map((p,i)=>i%2?p:convCy(p)).join("");
+  return String(s).split(/(YouTube|APK|GitHub|Google|Gmail|Rejam|Telegram)/).map((p,i)=>i%2?p:convCy(p)).join("");
 }
 function tx(s){return LANG==="cy"?lat2cyr(s):s;}
 function dispName(t){return (LANG==="cy"&&DEFLAT[t.name])?lat2cyr(t.name):t.name;}
@@ -392,14 +402,22 @@ function showLangChooser(){
 /* ---------- Mavzu: kun/tun va rang ---------- */
 var PALS=[{"n": "Ko'k", "a": "#1D5FE0"}, {"n": "Shaftoli", "a": "#DB4F33"}, {"n": "Salvia", "a": "#4A7554"}, {"n": "Atirgul", "a": "#C2414F"}, {"n": "Bahor", "a": "#3F8A22"}];
 var BGS={light:["#F2F6FC","#FFF6EC","#F3F6EF","#FFF5F6","#F5FAF0"],dark:["#060D24","#1C1210","#0F1712","#180D0F","#0F1610"]};
+var lastM=null;
+function toMin(t){const p=String(t||"0:0").split(":");return (+p[0]||0)*60+(+p[1]||0);}
+function isNight(){
+  const n=new Date(),m=n.getHours()*60+n.getMinutes(),f=toMin(S.nightFrom||"20:00"),t=toMin(S.nightTo||"07:00");
+  return f<t?(m>=f&&m<t):(m>=f||m<t);
+}
 function applyTheme(){
   const mode=(S&&S.theme)||"auto",pi=Math.min(Math.max((S&&S.pal)||0,0),PALS.length-1);
-  let m=mode;
-  if(mode==="auto"){try{m=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}catch(e){m="dark";}}
+  const m=mode==="auto"?(isNight()?"dark":"light"):mode;
   const r=document.documentElement;r.setAttribute("data-m",m);r.setAttribute("data-pal",String(pi));
   const mt=document.querySelector('meta[name=theme-color]');if(mt)mt.setAttribute("content",BGS[m][pi]);
+  if(lastM&&lastM!==m&&typeof queueSchedule==="function")queueSchedule();
+  lastM=m;
 }
-try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",function(){if(!S.theme||S.theme==="auto")applyTheme();});}catch(e){}
+setInterval(function(){if((S.theme||"auto")==="auto")applyTheme();},30000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden&&(S.theme||"auto")==="auto")applyTheme();});
 applyTheme();
 /* chiroyli tasdiqlash oynasi (brauzerning "OK/CANCEL" oynasi o'rniga) */
 function askConfirm(msg,okText,danger){
@@ -518,25 +536,45 @@ function renderStats(){
 /* ---------- Rejalar ---------- */
 function daysText(d){if(d.length===7)return "har kuni";if(!d.length)return "kun tanlanmagan";return d.slice().sort().map(i=>DAYS[i]).join(", ");}
 function dateText(k){const d=parseKey(k);return d.getDate()+"-"+MO[d.getMonth()];}
+var APP_VER="1.4",CONTACT_MAIL="ubaydullohboltabaev@gmail.com",CONTACT_TG="",SHARE_URL="";
+async function shareApp(){
+  const text=tx("Rejam: kunlik rejalar, budilnik, namoz vaqtlari va tahlil ilovasi.")+(SHARE_URL?"\n"+SHARE_URL:"");
+  try{const C=window.Capacitor;const Sh=NATIVE?((C.Plugins&&C.Plugins.Share)||C.registerPlugin("Share")):null;
+    if(Sh&&Sh.share){await Sh.share({title:"Rejam",text:text,dialogTitle:tx("Ulashish")});return;}}catch(e){}
+  try{if(navigator.share){await navigator.share({title:"Rejam",text:text});return;}}catch(e){}
+  try{await navigator.clipboard.writeText(text);}catch(e){}
+}
 function applyScale(){const z=(S.scale||100)/100;const a=$("#app");if(a)a.style.zoom=z;const l=$("#layer");if(l)l.style.zoom=z;}
+function prayersOn(){return PRAYERS.every((p,i)=>S.tasks.some(t=>t.prayer===i));}
+function togglePrayers(){
+  if(prayersOn())S.tasks=S.tasks.filter(t=>!(t.prayer!=null&&t.prayer>=0));
+  else addPrayers();
+  S.sample=false;save();render();
+}
 function addPrayers(){
   const dflt=["05:23","12:15","16:00","17:55","19:30"];
   PRAYERS.forEach((p,i)=>{if(S.tasks.some(t=>t.prayer===i))return;S.tasks.push({id:nid(),name:p+" namozi",cn:"Ibodat",time:dflt[i]||"",prayer:i,remind:true,days:ALL.slice()});});
-  S.sample=false;save();render();
-}
+  }
 function renderSet(){
   const sc=S.scale||100,wa=S.walpha==null?90:S.walpha,ws=S.wsize||13;
   let h=`<div class="top"><div class="date"><small>Ilova</small><h1>Sozlamalar</h1></div></div>`;
   h+=accountCard();
   const mo=S.theme||"auto",pi=S.pal||0;
   h+=`<div class="card"><span class="sub">Mavzu</span><div class="seg three">${[["light","Kun"],["dark","Tun"],["auto","Avto"]].map(x=>`<button type="button" data-theme="${x[0]}" aria-pressed="${mo===x[0]}">${x[1]}</button>`).join("")}</div>
+    ${mo==="auto"?`<div class="two"><div class="field"><label for="n-from">Tun boshlanishi</label><input type="time" id="n-from" value="${S.nightFrom||"20:00"}"></div><div class="field"><label for="n-to">Tun tugashi</label><input type="time" id="n-to" value="${S.nightTo||"07:00"}"></div></div><p class="note">Telefon soatiga qarab ilova o'zi almashadi. Hozir: <b>${isNight()?"tun":"kun"}</b> rejimi.</p>`:""}
     <span class="sub">Rang</span><div class="pals">${PALS.map((q,i)=>`<button type="button" class="pal" data-pal="${i}" aria-pressed="${pi===i}" style="--a:${q.a}"><i></i><span>${q.n}</span></button>`).join("")}</div></div>`;
   h+=`<div class="card u"><span class="sub">Til / Тил</span><div class="seg"><button type="button" data-lang="lat" aria-pressed="${LANG==="lat"}">O'zbekcha (lotin)</button><button type="button" data-lang="cy" aria-pressed="${LANG==="cy"}">Ўзбекча (кирилл)</button></div></div>`;
   h+=`<div class="card"><span class="sub">Ko'rinish</span><label class="rng"><span>Ilova o'lchami: <b id="v-scale">${sc}%</b></span><input type="range" id="r-scale" min="80" max="130" step="5" value="${sc}"></label><p class="note">Matn va tugmalar kattaroq yoki kichikroq bo'ladi.</p></div>`;
   h+=`<div class="card"><span class="sub">Budilnik</span><p class="note">${NATIVE&&nativeMsg?esc(nativeMsg):(S.remindOn?"Budilnik yoqilgan. Qo'ng'iroq belgisi bosilgan vazifalargagina signal chiqadi.":"Budilnik o'chiq.")}</p>
     <div class="actions"><button class="btn" type="button" id="testAlarm">Sinab ko'rish</button>${S.remindOn?"":'<button class="btn primary" type="button" id="enable">Budilnikni yoqish</button>'}</div></div>`;
-  h+=`<div class="card"><span class="sub">Namoz vaqtlari</span><p class="note">Toshkent uchun jadval ${PT_END}gacha. Bomdod, Peshin, Asr, Shom va Xufton vazifalarini bir bosishda qo'shadi.</p><button class="btn" type="button" id="addPray">5 vaqt namozni qo'shish</button></div>`;
+  const rg=S.ring||0;
+  h+=`<div class="card"><span class="sub">Budilnik ovozi</span><div class="tones">${TONES.map((x,i)=>`<div class="tone"><button type="button" class="tonepick" data-ring="${i}" aria-pressed="${rg===i}"><span class="rd"></span><span>${i+1}. ${x.n}</span></button><button type="button" class="iconbtn sm" data-play="${i}" aria-label="Tinglash">▶</button></div>`).join("")}</div>
+    <p class="note">Tanlangan ovoz telefon budilnigida ham chiqadi. Telefon ovozsiz rejimda yoki «Bezovta qilmang» holatida bo'lsa, ovoz chiqmaydi.</p></div>`;
+  h+=`<div class="card"><span class="sub">Namoz vaqtlari</span><p class="note">Toshkent uchun jadval ${PT_END}gacha. Bomdod, Peshin, Asr, Shom va Xufton vazifalarini qo'shadi. Qayta bossangiz, ular o'chiriladi.</p><button class="btn tog" type="button" id="addPray" aria-pressed="${prayersOn()}">${prayersOn()?"✓ 5 vaqt namoz qo'shilgan (o'chirish uchun bosing)":"5 vaqt namozni qo'shish"}</button></div>`;
   h+=`<div class="card"><span class="sub">Ma'lumotlar</span><button class="btn danger" type="button" id="clearAll">Barcha vazifalarni o'chirish</button></div>`;
+  h+=`<div class="card"><span class="sub">Ulashish va bog'lanish</span><button class="btn" type="button" id="shareApp">Ilovani ulashish</button>
+    <a class="btn" href="mailto:${CONTACT_MAIL}?subject=Rejam">Pochta orqali yozish</a>${CONTACT_TG?`<a class="btn" href="https://t.me/${CONTACT_TG}">Telegram orqali yozish</a>`:""}</div>`;
+  h+=`<div class="card"><span class="sub">Ilova haqida</span><p class="note"><b>Rejam</b> · ${APP_VER}</p><p class="note">Kunlik vazifalar, budilnik, namoz vaqtlari (Toshkent) va kun tahlili. Ma'lumotlar telefoningizda saqlanadi, hisobga kirsangiz Google orqali bulutda ham saqlanadi.</p></div>`;
   return h;
 }
 function renderPlan(){
@@ -608,7 +646,20 @@ function openForm(id,preset){
 /* ---------- Eslatma (budilnik) ---------- */
 let actx=null, beepTimer=null, queue=[], showing=false;
 function unlockAudio(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume();}catch(e){}}
-function beep(){if(!actx)return;try{[0,.28].forEach(off=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=880;
+var TONES=[{"n": "Oddiy", "p": [[880, 260], [0, 120], [880, 260], [0, 120], [880, 260], [0, 500], [880, 260], [0, 120], [880, 260]]}, {"n": "Qo'ng'iroq", "p": [[988, 110], [784, 110], [988, 110], [784, 110], [988, 110], [784, 110], [988, 110], [784, 110], [988, 110], [784, 110], [988, 110], [784, 110], [988, 110], [784, 110], [988, 110], [784, 110], [0, 300]]}, {"n": "Tong", "p": [[523, 300], [659, 300], [784, 300], [1047, 700]]}, {"n": "Zangor", "p": [[1318, 900], [988, 900], [1318, 1200]]}, {"n": "Melodiya", "p": [[523, 220], [587, 220], [659, 220], [784, 220], [659, 220], [587, 220], [523, 500]]}, {"n": "Chaqmoq", "p": [[1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70], [1200, 90], [0, 70]]}, {"n": "Tinch", "p": [[523, 900], [659, 900], [784, 1200]]}, {"n": "Signal", "p": [[700, 200], [1000, 200], [700, 200], [1000, 200], [700, 200], [1000, 200], [700, 200], [1000, 200], [700, 200], [1000, 200]]}, {"n": "Bahor", "p": [[784, 150], [880, 150], [988, 150], [1175, 150], [988, 150], [880, 150], [784, 150], [0, 100], [1175, 400]]}, {"n": "Marjon", "p": [[523, 180], [784, 180], [1319, 180], [784, 180], [1047, 700]]}];
+function toneLen(i){return (TONES[i]||TONES[0]).p.reduce(function(a,n){return a+n[1];},0)/1000;}
+function playTone(i){
+  if(!actx)return;
+  try{let t=actx.currentTime+0.02;
+    (TONES[i]||TONES[0]).p.forEach(function(n){const f=n[0],d=n[1]/1000;
+      if(f>0){[[1,.6],[2,.24],[3,.09]].forEach(function(h){const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=f*h[0];
+        g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.3*h[1],t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+        o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d+.02);});}
+      t+=d;});
+  }catch(e){}
+}
+function beep(){playTone(S.ring||0);}
+function beepOld(){if(!actx)return;try{[0,.28].forEach(off=>{const o=actx.createOscillator(),g=actx.createGain();o.type="sine";o.frequency.value=880;
   g.gain.setValueAtTime(.0001,actx.currentTime+off);g.gain.exponentialRampToValueAtTime(.35,actx.currentTime+off+.02);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+off+.22);
   o.connect(g);g.connect(actx.destination);o.start(actx.currentTime+off);o.stop(actx.currentTime+off+.25);});}catch(e){}}
 function stopBeep(){clearInterval(beepTimer);beepTimer=null;}
@@ -620,7 +671,7 @@ function next(){
   $("#layer").innerHTML=`<div class="overlay alarm ring-anim" id="ov"><div class="sheet" role="alertdialog" aria-label="Eslatma"><small class="note">ESLATMA</small><div class="big num">${esc(shown)}</div><h2 class="u">${esc(dispName(t))}</h2>
     <button class="btn primary" id="a-done">Bajardim</button><button class="btn" id="a-snz">10 daqiqadan keyin eslat</button><button class="btn" id="a-close">Yopish</button></div></div>`;
   localizeDom($("#layer"));
-  beep();beepTimer=setInterval(beep,1500);try{navigator.vibrate&&navigator.vibrate([300,150,300]);}catch(e){}
+  unlockAudio();beep();beepTimer=setInterval(beep,Math.max(1500,(toneLen(S.ring||0)+.8)*1000));try{navigator.vibrate&&navigator.vibrate([300,150,300]);}catch(e){}
   const end=()=>{stopBeep();$("#layer").innerHTML="";showing=false;render();next();};
   $("#a-done").onclick=()=>{const k=dkey(new Date());const a=S.done[k]||(S.done[k]=[]);if(t.id&&!a.includes(t.id))a.push(t.id);save();end();};
   $("#a-snz").onclick=()=>{S.snooze.push({id:t.id,at:Date.now()+10*60000});save();end();};
@@ -657,9 +708,15 @@ function render(){
   const si=$("#signIn");if(si)si.onclick=()=>showLogin();
   const so=$("#signOut");if(so)so.onclick=()=>doSignOut();
   const sb=$("#syncBtn");if(sb)sb.onclick=()=>syncNow(true);
-  const ap=$("#addPray");if(ap)ap.onclick=addPrayers;
+  const ap=$("#addPray");if(ap)ap.onclick=togglePrayers;
   const ca=$("#clearAll");if(ca)ca.onclick=async()=>{if(await askConfirm("Barcha vazifalar va belgilar o'chirilsinmi? Hisobga kirgan bo'lsangiz, bulutdagi nusxa ham yangilanadi.","Ha, o'chirilsin",true)){S.tasks=[];S.done={};S.sample=false;save();render();}};
   app.querySelectorAll("[data-theme]").forEach(b=>b.onclick=()=>{S.theme=b.dataset.theme;save();applyTheme();render();});
+  const nf=$("#n-from"),nt=$("#n-to");
+  if(nf)nf.onchange=()=>{if(nf.value)S.nightFrom=nf.value;save();applyTheme();render();};
+  if(nt)nt.onchange=()=>{if(nt.value)S.nightTo=nt.value;save();applyTheme();render();};
+  app.querySelectorAll("[data-ring]").forEach(b=>b.onclick=()=>{S.ring=+b.dataset.ring;unlockAudio();playTone(S.ring);save();render();});
+  app.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{unlockAudio();playTone(+b.dataset.play);});
+  const sh=$("#shareApp");if(sh)sh.onclick=shareApp;
   app.querySelectorAll("[data-pal]").forEach(b=>b.onclick=()=>{S.pal=+b.dataset.pal;save();applyTheme();render();});
   [["r-scale","v-scale","scale","%"]].forEach(a=>{
     const r=$("#"+a[0]);if(!r)return;
@@ -702,7 +759,7 @@ async function pushWidget(){
     const p=W.update({json:JSON.stringify({date:k,title:"Rejam",hdr:tx("Bugun"),done:st.done.length,total:st.list.length,
       items:items,more:Math.max(0,st.left.length-items.length),
       empty:st.list.length?tx("Hammasi bajarildi")+" ✓":tx("Bugunga vazifa yo'q"),moreTxt:tx("ta yana"),
-      stale:tx("Yangilash uchun ilovani oching"),alpha:90,size:13,
+      stale:tx("Yangilash uchun ilovani oching"),alpha:92,scale:S.scale||100,m:document.documentElement.getAttribute("data-m")||"dark",pal:S.pal||0,ink:getComputedStyle(document.documentElement).getPropertyValue("--ink").trim(),ok:getComputedStyle(document.documentElement).getPropertyValue("--ok").trim(),
       addTitle:tx("Yangi vazifa"),addHint:tx("Vazifa nomi"),addBtn:tx("Qo'shish"),cancelBtn:tx("Bekor qilish")})});
     if(p&&p.catch)p.catch(function(){});
   }catch(e){}
@@ -723,7 +780,8 @@ async function scheduleNative(){
     let perm=await LN.checkPermissions();
     if(perm.display!=="granted"){perm=await LN.requestPermissions();}
     if(perm.display!=="granted"){setNativeMsg("Budilnik o'chiq: bildirishnomalarga ruxsat berilmagan. Telefon sozlamalaridan «Rejam» uchun bildirishnomani yoqing.");return;}
-    try{await LN.createChannel({id:"budilnik",name:tx("Budilnik"),description:tx("Vazifa vaqti eslatmalari"),importance:5,visibility:1,vibration:true});}catch(e){}
+    const ringN=(S.ring||0)+1,chId="budilnik_"+ringN,snd="ring_"+ringN+".wav";
+    try{await LN.createChannel({id:chId,name:tx("Budilnik")+" "+ringN,description:tx("Vazifa vaqti eslatmalari"),importance:5,visibility:1,vibration:true,sound:snd});}catch(e){}
     const pend=await LN.getPending();
     if(pend.notifications&&pend.notifications.length)await LN.cancel({notifications:pend.notifications});
     const list=[],now=Date.now();let n=1;
@@ -735,7 +793,7 @@ async function scheduleNative(){
         const hm=tt.split(":").map(Number);
         const at=new Date(d.getFullYear(),d.getMonth(),d.getDate(),hm[0],hm[1],0);
         if(at.getTime()<=now)return;
-        list.push({id:n++,title:tx("Vaqti keldi: ")+tt,body:dispName(t),schedule:{at:at,allowWhileIdle:true},channelId:"budilnik"});
+        list.push({id:n++,title:tx("Vaqti keldi: ")+tt,body:dispName(t),schedule:{at:at,allowWhileIdle:true},channelId:chId,sound:snd});
       });
     }
     if(list.length)await LN.schedule({notifications:list});
